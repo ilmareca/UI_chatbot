@@ -5,8 +5,40 @@ def handle_files(files):
     # Devuelve la lista de archivos subidos
     return [file.name for file in files]
 
+def handle_message(message, history):
+    # Añade el mensaje al historial
+    history.append(( message))
+    # Aquí puedes añadir lógica para generar una respuesta del asistente
+    response = "Esta es una respuesta automática."
+    history.append(response)
+    return history
+
 # Function to create the Gradio UI
 def create_UI(initial_message: str, action_name: str) -> gr.Blocks:
+    """
+    Crea una interfaz de usuario para un chatbot utilizando Gradio.
+    Args:
+        initial_message (str): El mensaje inicial que se mostrará en el chatbot.
+        action_name (str): El nombre de la acción extra que se mostrará en el botón correspondiente.
+    Returns:
+        gr.Blocks: Un objeto de bloques de Gradio que representa la interfaz de usuario del chatbot.
+    La interfaz de usuario incluye:
+        - Una barra superior con un logo y el nombre de la empresa.
+        - Un contenedor principal con instrucciones del chatbot.
+        - Un cargador de archivos para contexto adicional (archivos .pdf y .txt).
+        - Un chatbot con un mensaje inicial.
+        - Una caja de texto para la entrada del usuario.
+        - Un botón de envío para enviar mensajes al chatbot.
+        - Un botón para reiniciar la conversación.
+        - Un botón para una acción extra.
+        - Una caja de texto para mostrar un resumen.
+    Eventos manejados:
+        - Habilitar el botón de envío cuando hay texto en la caja de texto.
+        - Resetear el chatbot y el resumen cuando se sube un archivo.
+        - Resetear el chatbot y el resumen cuando se hace clic en el botón de limpiar.
+        - Manejar el flujo de eventos cuando se envía texto o se hace clic en el botón de envío.
+        - Manejar el flujo de eventos cuando se hace clic en el botón de acción extra.
+    """
     # Crea un bloque de interfaz de usuario con el título "Tu Asistente Virtual de IA"
     with gr.Blocks(title="Tu Asistente Virtual de IA", css="""
         .gradio-container {background-color: #f0f0f0;}
@@ -58,7 +90,7 @@ def create_UI(initial_message: str, action_name: str) -> gr.Blocks:
 
             # Eventos
             # Habilita el botón de envío cuando hay texto en la caja de texto
-            input_text_ui.change(lambda x: gr.Button(interactive=True) if bool(x) else gr.Button(interactive=False), inputs=input_text_ui, outputs=submit_btn)
+            input_text_ui.change(lambda x: gr.Button(interactive=True) if bool(x) else gr.Button(interactive(False)), inputs=input_text_ui, outputs=submit_btn)
 
             # Resetea el chatbot y el resumen cuando se sube un archivo
             file_uploader_ui.change(lambda: ([[None, initial_message]], None), outputs=[chatbot_ui, summary_ui])
@@ -67,14 +99,11 @@ def create_UI(initial_message: str, action_name: str) -> gr.Blocks:
             clear_btn.click(lambda: ([[None, initial_message]], None), outputs=[chatbot_ui, summary_ui])
 
             # Maneja el flujo de eventos cuando se envía texto o se hace clic en el botón de envío
-            submit_btn.click(lambda: submit_btn.interactive(False), outputs=submit_btn) \
-                .then(lambda: extra_action_button.interactive(False), outputs=extra_action_button) \
-                .then(lambda: clear_btn.interactive(False), outputs=clear_btn) \
-                .then(lambda prompt, conversation: conversation.append([prompt, None]), inputs=[input_text_ui, chatbot_ui], outputs=chatbot_ui) \
+            submit_btn.click(handle_message, inputs=[input_text_ui, chatbot_ui], outputs=chatbot_ui) \
                 .then(lambda: None, outputs=input_text_ui) \
-                .then(lambda history: history, inputs=chatbot_ui, outputs=chatbot_ui) \
-                .then(lambda: clear_btn.interactive(True), outputs=clear_btn) \
-                .then(lambda: extra_action_button.interactive(True), outputs=extra_action_button)
+                .then(lambda: submit_btn.interactive(False), outputs=submit_btn) \
+                .then(lambda: extra_action_button.interactive(True), outputs=extra_action_button) \
+                .then(lambda: clear_btn.interactive(True), outputs=clear_btn)
 
             # Maneja el flujo de eventos cuando se hace clic en el botón de acción extra
             extra_action_button.click(lambda: extra_action_button.interactive(False), outputs=extra_action_button) \
