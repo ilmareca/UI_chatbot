@@ -1,17 +1,40 @@
 import gradio as gr
+from typing import List
+import time
+import logging
+import threading
 
-# Define una función que maneje los archivos subidos
-def handle_files(files):
-    # Devuelve la lista de archivos subidos
-    return [file.name for file in files]
+log = logging.getLogger(__name__)
 
-def handle_message(message, history):
-    # Añade el mensaje al historial
-    history.append(( message))
-    # Aquí puedes añadir lógica para generar una respuesta del asistente
-    response = "Esta es una respuesta automática."
-    history.append(response)
-    return history
+inference_lock = threading.Lock()
+
+def transcribe(prompt: str, conversation: List[List[str]]) -> List[List[str]]:
+    conversation.append([prompt, None])
+    with inference_lock:
+        # Aquí iría la lógica de transcripción
+        response = "Transcripción simulada."
+        conversation[-1][1] = response
+    return conversation
+
+def chat(history: List[List[str]]) -> List[List[str]]:
+    # get token by token and merge to the final response
+    history[-1][1] = ""
+    with inference_lock:
+        start_time = time.time()
+
+        # Simulación de generación de respuesta
+        chat_streamer = ["Respuesta parcial 1.", " Respuesta parcial 2.", " Respuesta completa."]
+        for partial_text in chat_streamer:
+            history[-1][1] += partial_text
+            # "return" partial response
+            yield history
+
+        end_time = time.time()
+
+        # 75 words ~= 100 tokens
+        tokens = len(history[-1][1].split(" ")) * 4 / 3
+        processing_time = end_time - start_time
+        log.info(f"Chat model response time: {processing_time:.2f} seconds ({tokens / processing_time:.2f} tokens/s)")
 
 # Function to create the Gradio UI
 def create_UI(initial_message: str, action_name: str) -> gr.Blocks:
@@ -85,7 +108,6 @@ def create_UI(initial_message: str, action_name: str) -> gr.Blocks:
                         clear_btn = gr.Button("Empezar de nuevo", variant="secondary", scale=1, elem_id="clear_btn")
                         # Añade un botón para una acción extra, inicialmente no interactivo
                         extra_action_button = gr.Button(action_name, variant="primary", interactive=False, elem_id="extra_action_btn")
-            # Añade una caja de texto para mostrar un resumen, inicialmente no interactivo
             summary_ui = gr.Textbox(label=f"Resumen (Haz clic en '{action_name}' para activar)", interactive=False, elem_id="summary")
 
             # Eventos
@@ -99,7 +121,7 @@ def create_UI(initial_message: str, action_name: str) -> gr.Blocks:
             clear_btn.click(lambda: ([[None, initial_message]], None), outputs=[chatbot_ui, summary_ui])
 
             # Maneja el flujo de eventos cuando se envía texto o se hace clic en el botón de envío
-            submit_btn.click(handle_message, inputs=[input_text_ui, chatbot_ui], outputs=chatbot_ui) \
+            submit_btn.click(transcribe, inputs=[input_text_ui, chatbot_ui], outputs=chatbot_ui) \
                 .then(lambda: None, outputs=input_text_ui) \
                 .then(lambda: submit_btn.interactive(False), outputs=submit_btn) \
                 .then(lambda: extra_action_button.interactive(True), outputs=extra_action_button) \
